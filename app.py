@@ -1,15 +1,96 @@
 import time
+import streamlit as st
+from google import genai
+from google.genai import types
 from google.genai.errors import APIError
 
+# -------------------------------------------------------------
+# 1. CẤU HÌNH GIAO DIỆN
+# -------------------------------------------------------------
+st.set_page_config(
+    page_title="Trợ lý Số Nội bộ",
+    page_icon="🤖",
+    layout="centered"
+)
+
+# -------------------------------------------------------------
+# 2. THANH BÊN (SIDEBAR) & NÚT LÀM MỚI
+# -------------------------------------------------------------
+with st.sidebar:
+    st.header("📌 Hướng dẫn sử dụng")
+    st.markdown(
+        """
+        - **Tra cứu:** Gõ từ khóa quy chế, điều khoản, bảng giá.
+        - **Tính toán:** Nhập số liệu cụ thể (Doanh số, số lượng, tỷ lệ...).
+        
+        💡 *Ví dụ câu lệnh:*
+        - *"Quy định chiết khấu khách hàng VIP là gì?"*
+        - *"Tính chiết khấu đơn 50 triệu thanh toán ngay."*
+        """
+    )
+    st.divider()
+    if st.button("🔄 Bắt đầu cuộc trò chuyện mới", use_container_width=True):
+        st.session_state.messages = []
+        st.rerun()
+
+st.title("🤖 Trợ lý Tra cứu & Tính toán Nội bộ")
+
+# -------------------------------------------------------------
+# 3. ĐỌC DỮ LIỆU TÀI LIỆU
+# -------------------------------------------------------------
+try:
+    with open("tailieu.txt", "r", encoding="utf-8") as f:
+        noi_dung_tai_lieu = f.read()
+except FileNotFoundError:
+    noi_dung_tai_lieu = "Chưa có tài liệu đính kèm."
+
+# -------------------------------------------------------------
+# 4. CHỈ DẪN VAI TRÒ & NGUYÊN TẮC CỦA BOT
+# -------------------------------------------------------------
+sys_prompt = f"""
+Bạn là Trợ lý Số nội bộ phục vụ cho 25 thành viên trong phòng ban.
+
+--- TÀI LIỆU QUY CHẾ VÀ CÔNG THỨC ---
+{noi_dung_tai_lieu}
+-------------------------------------
+
+QUY TẮC TRẢ LỜI:
+1. VĂN PHONG: Xưng 'Em' và gọi người dùng là 'Anh/Chị'. Lịch sự, chuyên nghiệp.
+2. NGUYÊN TẮC TRA CỨU:
+   - Chỉ căn cứ vào mục 'TÀI LIỆU QUY CHẾ VÀ CÔNG THỨC'.
+   - Nếu câu hỏi nằm ngoài tài liệu, trả lời: "Dạ thông tin này hiện chưa có trong tài liệu quy định nội bộ của phòng ban mình ạ."
+3. NGUYÊN TẮC TÍNH TOÁN:
+   Trình bày rõ 3 bước:
+   - Bước 1: Liệt kê biến số đầu vào nhận được.
+   - Bước 2: Nêu rõ công thức và phép tính cụ thể.
+   - Bước 3: Đưa ra kết quả cuối cùng được bôi đậm rõ ràng.
+"""
+
+# -------------------------------------------------------------
+# 5. KHỞI TẠO TIN NHẮN CHÀO TỰ ĐỘNG
+# -------------------------------------------------------------
+if "messages" not in st.session_state or len(st.session_state.messages) == 0:
+    st.session_state.messages = [
+        {
+            "role": "assistant",
+            "content": "👋 **Xin chào anh/chị!** Em là Trợ lý Tra cứu & Tính toán Nội bộ.\n\nEm đã sẵn sàng hỗ trợ tra cứu quy chế và tính toán số liệu. Anh/chị cần kiểm tra thông tin gì cứ nhắn cho em nhé!"
+        }
+    ]
+
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
+
+# -------------------------------------------------------------
+# 6. KHUNG CHAT & GỬI YÊU CẦU TỚI GEMINI (CÓ AUTO-RETRY 503)
+# -------------------------------------------------------------
 user_input = st.chat_input("Nhập câu hỏi hoặc số liệu cần tính vào đây...")
 
 if user_input:
-    # 1. Hiển thị câu hỏi của người dùng
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
         st.markdown(user_input)
 
-    # 2. Xử lý gọi Gemini API với cơ chế tự động thử lại nếu máy chủ quá tải
     with st.chat_message("assistant"):
         with st.spinner("Đang tra cứu dữ liệu..."):
             client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
@@ -24,14 +105,13 @@ if user_input:
                         config=types.GenerateContentConfig(system_instruction=sys_prompt)
                     )
                     bot_reply = response.text
-                    break  # Thành công thì thoát vòng lặp
+                    break
                 except APIError as e:
-                    # Nếu gặp lỗi quá tải 503, chờ 2 giây rồi thử lại
                     if "503" in str(e) and attempt < max_retries - 1:
                         time.sleep(2)
                         continue
                     else:
-                        bot_reply = "⚠️ Hệ thống máy chủ AI đang quá tải tạm thời, anh/chị vui lòng thử lại sau 30 giây nhé!"
+                        bot_reply = "⚠️ Máy chủ AI đang tạm thời bận xử lý, anh/chị vui lòng gửi lại câu hỏi sau vài giây nhé!"
                         break
 
             st.markdown(bot_reply)

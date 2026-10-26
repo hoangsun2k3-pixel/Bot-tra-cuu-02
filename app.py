@@ -5,7 +5,7 @@ from google.genai import types
 from google.genai.errors import APIError
 
 # -------------------------------------------------------------
-# 1. CẤU HÌNH GIAO DIỆN
+# 1. CẤU HÌNH GIAO DIỆN & TIÊU ĐỀ
 # -------------------------------------------------------------
 st.set_page_config(
     page_title="Trợ lý Số Nội bộ",
@@ -14,7 +14,7 @@ st.set_page_config(
 )
 
 # -------------------------------------------------------------
-# 2. THANH BÊN (SIDEBAR) & NÚT LÀM MỚI
+# 2. THANH BÊN (SIDEBAR) & NÚT LÀM MỚI CUỘC TRÒ CHUYỆN
 # -------------------------------------------------------------
 with st.sidebar:
     st.header("📌 Hướng dẫn sử dụng")
@@ -22,6 +22,7 @@ with st.sidebar:
         """
         - **Tra cứu:** Gõ từ khóa quy chế, điều khoản, bảng giá.
         - **Tính toán:** Nhập số liệu cụ thể (Doanh số, số lượng, tỷ lệ...).
+        - **Hỗ trợ chung:** Soạn thảo văn bản, dịch thuật, giải đáp nghiệp vụ.
         
         💡 *Ví dụ câu lệnh:*
         - *"Quy định chiết khấu khách hàng VIP là gì?"*
@@ -36,7 +37,7 @@ with st.sidebar:
 st.title("🤖 Trợ lý Tra cứu & Tính toán Nội bộ")
 
 # -------------------------------------------------------------
-# 3. ĐỌC DỮ LIỆU TÀI LIỆU
+# 3. ĐỌC DỮ LIỆU TÀI LIỆU NỘI BỘ
 # -------------------------------------------------------------
 try:
     with open("tailieu.txt", "r", encoding="utf-8") as f:
@@ -57,23 +58,13 @@ Bạn là Trợ lý Số nội bộ phục vụ cho 25 thành viên trong phòng
 QUY TẮC XỬ LÝ CÂU HỎI:
 1. ĐỐI VỚI QUY CHẾ, BẢNG GIÁ, CÔNG THỨC CỦA PHÒNG BAN:
    - Bắt buộc lấy chính xác từ mục 'TÀI LIỆU QUY CHẾ VÀ CÔNG THỨC NỘI BỘ'.
-   - Tuyệt đối không tự suy diễn nếu tài liệu không đề cập.
+   - Nếu câu hỏi về nội bộ nhưng trong tài liệu không có, trả lời: "Dạ thông tin này hiện chưa có trong tài liệu quy định nội bộ của phòng ban mình ạ."
+   - Khi tính toán, luôn nêu rõ các bước: Biến số đầu vào -> Công thức áp dụng -> Phép tính chi tiết -> Kết quả in đậm.
 
-2. ĐỐI VỚI CÁC CÂU HỎI KỸ NĂNG VÀ HỖ TRỢ CHUNG (Viết email, dịch thuật, tính toán ngoài, kiến thức phổ thông):
-   - Bạn được phép sử dụng tri thức tổng quát của Google Gemini để hỗ trợ người dùng nhiệt tình và chuẩn xác.
+2. ĐỐI VỚI CÁC CÂU HỎI KỸ NĂNG VÀ HỖ TRỢ CHUNG (Viết email, dịch thuật, kiến thức phổ thông):
+   - Bạn được phép sử dụng tri thức tổng quát của Google Gemini để hỗ trợ người dùng nhiệt tình, ngắn gọn và chuẩn xác.
 
-3. VĂN PHONG: Xưng 'Em' và gọi 'Anh/Chị', trình bày rõ ràng, dễ đọc.
-"""
-QUY TẮC TRẢ LỜI:
-1. VĂN PHONG: Xưng 'Em' và gọi người dùng là 'Anh/Chị'. Lịch sự, chuyên nghiệp.
-2. NGUYÊN TẮC TRA CỨU:
-   - Chỉ căn cứ vào mục 'TÀI LIỆU QUY CHẾ VÀ CÔNG THỨC'.
-   - Nếu câu hỏi nằm ngoài tài liệu, trả lời: "Dạ thông tin này hiện chưa có trong tài liệu quy định nội bộ của phòng ban mình ạ."
-3. NGUYÊN TẮC TÍNH TOÁN:
-   Trình bày rõ 3 bước:
-   - Bước 1: Liệt kê biến số đầu vào nhận được.
-   - Bước 2: Nêu rõ công thức và phép tính cụ thể.
-   - Bước 3: Đưa ra kết quả cuối cùng được bôi đậm rõ ràng.
+3. VĂN PHONG: Xưng 'Em' và gọi người dùng là 'Anh/Chị'. Tác phong chuyên nghiệp, lịch sự.
 """
 
 # -------------------------------------------------------------
@@ -83,7 +74,7 @@ if "messages" not in st.session_state or len(st.session_state.messages) == 0:
     st.session_state.messages = [
         {
             "role": "assistant",
-            "content": "👋 **Xin chào anh/chị!** Em là Trợ lý Tra cứu & Tính toán Nội bộ.\n\nEm đã sẵn sàng hỗ trợ tra cứu quy chế và tính toán số liệu. Anh/chị cần kiểm tra thông tin gì cứ nhắn cho em nhé!"
+            "content": "👋 **Xin chào anh/chị!** Em là Trợ lý Tra cứu & Tính toán Nội bộ.\n\nEm đã nắm rõ các quy định trong tài liệu phòng ban. Anh/chị cần tra cứu điều khoản, tính toán số liệu hay cần hỗ trợ soạn thảo nội dung gì cứ nhắn cho em nhé!"
         }
     ]
 
@@ -92,7 +83,7 @@ for msg in st.session_state.messages:
         st.markdown(msg["content"])
 
 # -------------------------------------------------------------
-# 6. KHUNG CHAT & GỬI YÊU CẦU TỚI GEMINI (CÓ AUTO-RETRY 503)
+# 6. KHUNG CHAT & GỬI YÊU CẦU ĐẾN GEMINI (CÓ AUTO-RETRY 503)
 # -------------------------------------------------------------
 user_input = st.chat_input("Nhập câu hỏi hoặc số liệu cần tính vào đây...")
 

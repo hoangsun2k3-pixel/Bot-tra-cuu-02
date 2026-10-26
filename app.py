@@ -32,7 +32,7 @@ if user_input:
     sys_prompt = "Bạn là trợ lý bảo hiểm VBI. Hãy trả lời ngắn gọn, đối chiếu đúng tài liệu và tính toán chính xác theo công thức quy định."
     
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model="gemini-2.0-flash",
         contents=user_input,
         config=types.GenerateContentConfig(system_instruction=sys_prompt)
     )

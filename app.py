@@ -106,7 +106,6 @@ with st.expander("⚡ Bấm vào đây để Mở Bảng Tính Phí Tự Động
         tong_pp += 0.05
     if bs10:
         tong_pp += 0.025
-
    if idx_nhom in [1, 2]:
         tlp_thuan_cb = [0.80, 0.85, 0.95, 1.05][idx_tuoi]
     elif idx_nhom == 3:

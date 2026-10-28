@@ -64,38 +64,44 @@ if user_input:
     with st.chat_message("user"):
         st.markdown(user_input)
 
-    lich_su = [
-        types.Content(role="user" if m["role"] == "user" else "model", parts=[types.Part.from_text(text=m["content"])])
-        for m in st.session_state.messages[-6:]
-    ]
+    # Gom lịch sử hội thoại thành văn bản để KHÔNG BAO GIỜ bị lỗi thứ tự role (400 INVALID_ARGUMENT)
+    doan_hoi_thoai = ""
+    for m in st.session_state.messages[-6:]:
+        nguoi_noi = "Khách hàng" if m["role"] == "user" else "Trợ lý VBI"
+        doan_hoi_thoai += f"{nguoi_noi}: {m['content']}\n\n"
+
+    noi_dung_gui = f"Lịch sử trao đổi gần đây:\n{doan_hoi_thoai}\nHãy trả lời câu hỏi mới nhất của Khách hàng."
 
     with st.chat_message("assistant"):
         hop_cho = st.empty()
         client = lay_client()
         bot_reply = None
-        ds_model = ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-2.0-flash"]
+        loi_cuoi = ""
 
-        for lan in range(4):
-            for ten_model in ds_model:
-                try:
-                    hop_cho.info(f"⏳ Đang tra cứu dữ liệu... (Lần {lan + 1})")
-                    res = client.models.generate_content(
-                        model=ten_model,
-                        contents=lich_su,
-                        config=types.GenerateContentConfig(system_instruction=sys_prompt, temperature=0.1)
-                    )
-                    bot_reply = res.text
-                    break
-                except APIError as e:
-                    if "404" in str(e) or "NOT_FOUND" in str(e):
-                        continue
-                    time.sleep(2)
-            if bot_reply:
+        for lan in range(3):
+            try:
+                hop_cho.info("⏳ Đang tra cứu dữ liệu...")
+                res = client.models.generate_content(
+                    model="gemini-3.8-flash",
+                    contents=noi_dung_gui,
+                    config=types.GenerateContentConfig(system_instruction=sys_prompt, temperature=0.1)
+                )
+                bot_reply = res.text
                 break
-            time.sleep(3)
+            except APIError as e:
+                loi_cuoi = str(e)
+                if "503" in loi_cuoi or "429" in loi_cuoi or "UNAVAILABLE" in loi_cuoi:
+                    hop_cho.warning(f"Máy chủ đang bận, tự thử lại lần {lan + 2}...")
+                    time.sleep(3)
+                    continue
+                else:
+                    break
+            except Exception as e:
+                loi_cuoi = str(e)
+                break
 
         hop_cho.empty()
         if not bot_reply:
-            bot_reply = "⚠️ Máy chủ AI đang quá tải tạm thời, anh/chị vui lòng gửi lại sau vài giây nhé!"
+            bot_reply = f"⚠️ Không thể lấy phản hồi từ Google. Chi tiết lỗi: `{loi_cuoi}`"
         st.markdown(bot_reply)
         st.session_state.messages.append({"role": "assistant", "content": bot_reply})
